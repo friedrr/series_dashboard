@@ -101,6 +101,18 @@ def parse_downloads(html: str):
     여러 전략을 순서대로 시도한다.
     반환: (정수값, 사용된 전략 이름) 또는 (None, None)
     """
+    # 전략 0: btn_download 클래스 요소 안의 숫자 (2026-07 실제 페이지 구조)
+    #   예: <a class="btn_download"><span>4.9만</span></a>
+    m = re.search(
+        r'class="[^"]*btn_download[^"]*"[^>]*>\s*(?:<span[^>]*>)?\s*'
+        r'([\d][\d,\.]*\s*(?:억\s*[\d,\.]*\s*만?|만\s*[\d,]*)?)',
+        html,
+    )
+    if m:
+        val = parse_korean_number(m.group(1))
+        if val is not None:
+            return val, "btn_download-class"
+
     # 전략 1: '다운로드' 키워드 뒤 가까운 위치의 숫자 (태그 사이 허용)
     #   예: <li><span>다운로드</span><em>12,345,678</em></li>
     for m in re.finditer(r"다운로드", html):
