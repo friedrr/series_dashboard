@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시리즈 다운로드 장부</title>
+<script src="chart.umd.js"></script>
+<script src="data/data.js"></script>
+<style>
+  :root{
+    --paper:#FDFCF8;
+    --panel:#FFFFFF;
+    --grid:#3E7C59;          /* 원고지 녹색 선 */
+    --grid-soft:#3E7C5926;
+    --ink:#20241F;
+    --muted:#78806F;
+    --red:#C8442B;           /* 교정 붉은펜 */
+    --line:#E4E2D8;
+    --serif:'Noto Serif KR','Nanum Myeongjo','Batang',serif;
+    --sans:'Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;padding:28px 20px 80px}
+  .wrap{max-width:1060px;margin:0 auto}
+
+  /* ── 원고지 헤더 ─────────────────────────── */
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;margin-bottom:8px}
+  .manu{display:flex}
+  .manu span{
+    width:52px;height:52px;border:1.5px solid var(--grid);border-right:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:26px;font-weight:700;background:var(--panel);
+  }
+  .manu span:last-child{border-right:1.5px solid var(--grid)}
+  .manu span.empty{background:repeating-linear-gradient(45deg,transparent,transparent 4px,var(--grid-soft) 4px,var(--grid-soft) 5px)}
+  .head-meta{margin-left:auto;text-align:right;color:var(--muted);font-size:12.5px}
+  .head-meta b{color:var(--ink);font-weight:600}
+  .sample-badge{display:none;margin-top:4px;color:var(--red);font-size:12px}
+  .sample-badge.on{display:block}
+  .subtitle{color:var(--muted);font-size:13px;margin-bottom:26px;border-bottom:1.5px solid var(--grid);padding-bottom:14px}
+
+  /* ── 컨트롤 ─────────────────────────────── */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px}
+  .periods{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+  .periods button{border:none;background:none;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+  .periods button.on{background:var(--ink);color:var(--paper)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:var(--panel);cursor:pointer;font-size:13px;user-select:none}
+  .chip .dot{width:9px;height:9px;border-radius:50%}
+  .chip.off{opacity:.38}
+  .chip.off .dot{background:var(--muted) !important}
+
+  /* ── 요약 카드 ───────────────────────────── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px;margin-bottom:34px}
+  .card{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--c,var(--grid));border-radius:8px;padding:14px 16px}
+  .card h3{font-size:13.5px;font-weight:600;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .total{font-family:var(--serif);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .card .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:6px}
+  .card .row b{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+  .card .row b.up{color:var(--red)}
+
+  /* ── 섹션/차트 ───────────────────────────── */
+  section{margin-bottom:38px}
+  section h2{font-family:var(--serif);font-size:17px;font-weight:700;display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  section h2 small{font-family:var(--sans);font-weight:400;font-size:12px;color:var(--muted)}
+  section h2::before{content:"";width:11px;height:11px;border:1.5px solid var(--grid);display:inline-block;transform:translateY(1px)}
+  .chart-box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;height:330px;margin-top:12px}
+  .chart-box.tall{height:360px}
+  .chart-box canvas{max-height:100%}
+
+  /* ── 표 ─────────────────────────────────── */
+  .table-tools{display:flex;justify-content:flex-end;margin:12px 0 8px}
+  .btn{border:1px solid var(--ink);background:var(--panel);color:var(--ink);padding:7px 16px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer}
+  .btn:hover{background:var(--ink);color:var(--paper)}
+  .table-scroll{overflow:auto;max-height:430px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+  thead th{position:sticky;top:0;background:var(--paper);border-bottom:1.5px solid var(--grid);font-weight:600;z-index:2}
+  thead th:first-child{z-index:3}
+  td .d{color:var(--red);font-size:11px;display:block}
+  tbody tr:hover td{background:#F6F5EE}
+
+  .empty-note{padding:40px;text-align:center;color:var(--muted)}
+  @media (max-width:640px){
+    .manu span{width:40px;height:40px;font-size:19px}
+    .head-meta{margin-left:0;text-align:left}
+    .chart-box{height:270px;padding:10px}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="manu" id="manuTitle"></div>
+    <div class="head-meta">
+      마지막 수집 <b id="metaGenerated">-</b><br>
+      기록 <b id="metaDays">0</b>일 · 작품 <b id="metaWorks">0</b>편
+      <div class="sample-badge" id="sampleBadge">※ 예시 데이터입니다 — collect.py 실행 시 실제 데이터로 교체됩니다</div>
+    </div>
+  </header>
+  <p class="subtitle">네이버 시리즈 다운로드수 일일 기록 장부</p>
+
+  <div class="controls">
+    <div class="periods" id="periods">
+      <button data-days="7">7일</button>
+      <button data-days="30" class="on">30일</button>
+      <button data-days="90">90일</button>
+      <button data-days="0">전체</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <section>
+    <h2>일별 증가량 <small>전 기록 대비 순증가분</small></h2>
+    <div class="chart-box"><canvas id="deltaChart"></canvas></div>
+  </section>
+
+  <section>
+    <h2>누적 다운로드 추이</h2>
+    <div class="chart-box"><canvas id="cumChart"></canvas></div>
+  </section>
+
+  <section>
+    <h2>작품 간 비교 <small>선택한 기간의 총 증가량</small></h2>
+    <div class="chart-box tall"><canvas id="compChart"></canvas></div>
+  </section>
+
+  <section>
+    <h2>기록 원장</h2>
+    <div class="table-tools"><button class="btn" id="csvBtn">CSV 내보내기</button></div>
+    <div class="table-scroll" id="tableWrap"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const DATA = window.SERIES_DATA;
+  const fmt = n => n == null ? "–" : n.toLocaleString("ko-KR");
+  const fmtCompact = n => {
+    if (n == null) return "–";
+    if (Math.abs(n) >= 1e8) return (n/1e8).toFixed(1).replace(/\.0$/,"") + "억";
+    if (Math.abs(n) >= 1e4) return (n/1e4).toFixed(1).replace(/\.0$/,"") + "만";
+    return n.toLocaleString("ko-KR");
+  };
+  const PALETTE = ["#3E7C59","#C8442B","#2F5D8A","#B08A2E","#7A4E8C","#4E8C86","#8C5A3B","#5A6B2F"];
+
+  if (!DATA || !DATA.records || !Object.keys(DATA.records).length){
+    document.querySelector(".wrap").insertAdjacentHTML("beforeend",
+      '<p class="empty-note">아직 기록이 없습니다. config.json에 작품을 등록하고 collect.py를 실행하면 이곳에 장부가 채워집니다.</p>');
+    return;
+  }
+
+  // ── 데이터 정리 ──
+  const dates = Object.keys(DATA.records).sort();
+  const workNames = [];
+  (DATA.works || []).forEach(w => { if (w.name && !workNames.includes(w.name)) workNames.push(w.name); });
+  dates.forEach(d => Object.keys(DATA.records[d]).forEach(n => { if(!workNames.includes(n)) workNames.push(n); }));
+  const colorOf = {}; workNames.forEach((n,i)=> colorOf[n] = PALETTE[i % PALETTE.length]);
+
+  // 작품별 시계열 [{date, cum, delta}] — 누락일은 직전 기록 대비 증가분으로 계산
+  const series = {};
+  workNames.forEach(n => {
+    let prev = null; const arr = [];
+    dates.forEach(d => {
+      const v = DATA.records[d][n];
+      if (v == null) return;
+      arr.push({date:d, cum:v, delta: prev==null ? null : v - prev});
+      prev = v;
+    });
+    series[n] = arr;
+  });
+
+  // ── 상태 ──
+  const state = { days: 30, visible: new Set(workNames) };
+
+  // ── 헤더 ──
+  const manu = document.getElementById("manuTitle");
+  "다운로드장부".split("").forEach(ch => { const s=document.createElement("span"); s.textContent=ch; manu.appendChild(s); });
+  const pad=document.createElement("span"); pad.className="empty"; manu.appendChild(pad);
+  document.getElementById("metaGenerated").textContent = DATA.generatedAt || "-";
+  document.getElementById("metaDays").textContent = dates.length;
+  document.getElementById("metaWorks").textContent = workNames.length;
+  if (DATA.sample) document.getElementById("sampleBadge").classList.add("on");
+
+  // ── 컨트롤 ──
+  document.getElementById("periods").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    document.querySelectorAll("#periods button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); state.days = +b.dataset.days; render();
+  });
+  const chipsEl = document.getElementById("chips");
+  workNames.forEach(n=>{
+    const c=document.createElement("div"); c.className="chip";
+    c.innerHTML = `<span class="dot" style="background:${colorOf[n]}"></span>${n}`;
+    c.onclick = ()=>{ state.visible.has(n)?state.visible.delete(n):state.visible.add(n);
+      c.classList.toggle("off"); render(); };
+    chipsEl.appendChild(c);
+  });
+
+  // ── 기간 필터 ──
+  function inRange(){
+    if (!state.days) return dates.slice();
+    return dates.slice(-state.days);
+  }
+
+  // ── 차트 ──
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = "#78806F";
+  Chart.defaults.borderColor = "#EDECE3";
+  let deltaChart, cumChart, compChart;
+
+  function lineDatasets(field, rangeSet){
+    return workNames.filter(n=>state.visible.has(n)).map(n=>({
+      label:n, borderColor:colorOf[n], backgroundColor:colorOf[n],
+      borderWidth:2, pointRadius:2, pointHoverRadius:4, tension:.25, spanGaps:true,
+      data: series[n].filter(p=>rangeSet.has(p.date) && p[field]!=null)
+                     .map(p=>({x:p.date, y:p[field]}))
+    }));
+  }
+  function makeLineOpts(prefix){
+    return {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${prefix}${fmt(c.parsed.y)}`}}
+      },
+      scales:{ x:{type:"category", grid:{display:false}}, y:{ticks:{callback:v=>fmtCompact(v)}} }
+    };
+  }
+
+  function render(){
+    const range = inRange(); const rangeSet = new Set(range);
+
+    // 표를 먼저 렌더 — 차트 오류가 나더라도 기록은 항상 보이도록
+    renderTable(range);
+
+    // 요약 카드
+    const cards = document.getElementById("cards"); cards.innerHTML="";
+    workNames.filter(n=>state.visible.has(n)).forEach(n=>{
+      const arr = series[n]; if(!arr.length) return;
+      const last = arr[arr.length-1];
+      const lastDelta = last.delta;
+      const in7 = arr.filter(p=>dates.slice(-7).includes(p.date) && p.delta!=null);
+      const avg7 = in7.length ? Math.round(in7.reduce((s,p)=>s+p.delta,0)/in7.length) : null;
+      cards.insertAdjacentHTML("beforeend", `
+        <div class="card" style="--c:${colorOf[n]}">
+          <h3>${n}</h3>
+          <div class="total">${fmt(last.cum)}</div>
+          <div class="row"><span>최근 증가</span><b class="${lastDelta>0?'up':''}">${lastDelta==null?'–':'+'+fmt(lastDelta)}</b></div>
+          <div class="row"><span>7일 평균/일</span><b>${avg7==null?'–':'+'+fmt(avg7)}</b></div>
+          <div class="row"><span>기준일</span><b>${last.date.slice(5)}</b></div>
+        </div>`);
+    });
+
+    // 그래프
+    try {
+      const xLabels = range;
+
+      if (deltaChart) deltaChart.destroy();
+      deltaChart = new Chart(document.getElementById("deltaChart"), {
+        type:"line",
+        data:{ labels:xLabels, datasets:lineDatasets("delta", rangeSet) },
+        options: makeLineOpts("+")
+      });
+
+      if (cumChart) cumChart.destroy();
+      cumChart = new Chart(document.getElementById("cumChart"), {
+        type:"line",
+        data:{ labels:xLabels, datasets:lineDatasets("cum", rangeSet) },
+        options: makeLineOpts("")
+      });
+
+      // 작품 간 비교 (기간 총 증가량, 가로 막대)
+      const comp = workNames.filter(n=>state.visible.has(n)).map(n=>{
+        const pts = series[n].filter(p=>rangeSet.has(p.date));
+        if (pts.length < 2) return {n, gain:0};
+        return {n, gain: pts[pts.length-1].cum - pts[0].cum};
+      }).sort((a,b)=>b.gain-a.gain);
+      if (compChart) compChart.destroy();
+      compChart = new Chart(document.getElementById("compChart"), {
+        type:"bar",
+        data:{ labels:comp.map(c=>c.n),
+          datasets:[{ data:comp.map(c=>c.gain),
+            backgroundColor:comp.map(c=>colorOf[c.n]+"CC"),
+            borderColor:comp.map(c=>colorOf[c.n]), borderWidth:1.5, borderRadius:4 }] },
+        options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false},
+            tooltip:{callbacks:{label:c=>` 기간 증가 +${fmt(c.parsed.x)}`}} },
+          scales:{ x:{ticks:{callback:v=>fmtCompact(v)}}, y:{grid:{display:false}, ticks:{color:"#20241F"}} } }
+      });
+    } catch(e){ console.error("차트 렌더 오류:", e); }
+  }
+
+  function renderTable(range){
+    const visible = workNames.filter(n=>state.visible.has(n));
+    const deltaMap = {}; visible.forEach(n=>{ deltaMap[n]={}; series[n].forEach(p=>deltaMap[n][p.date]=p); });
+    let html = "<table><thead><tr><th>날짜</th>";
+    visible.forEach(n=> html += `<th>${n}</th>`);
+    html += "</tr></thead><tbody>";
+    range.slice().reverse().forEach(d=>{
+      html += `<tr><td>${d}</td>`;
+      visible.forEach(n=>{
+        const p = deltaMap[n][d];
+        html += p ? `<td>${fmt(p.cum)}${p.delta!=null?`<span class="d">+${fmt(p.delta)}</span>`:""}</td>` : "<td>–</td>";
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    document.getElementById("tableWrap").innerHTML = html;
+  }
+
+  // ── CSV 내보내기 ──
+  document.getElementById("csvBtn").onclick = ()=>{
+    const rows = [["날짜","작품","누적 다운로드","일일 증가"]];
+    workNames.forEach(n=> series[n].forEach(p=> rows.push([p.date, n, p.cum, p.delta==null?"":p.delta])));
+    const csv = "\uFEFF" + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    a.download = `시리즈_다운로드_기록_${dates[dates.length-1]}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
