@@ -2,15 +2,14 @@ name: 시리즈 다운로드수 수집
 
 on:
   schedule:
-    # UTC 기준 00:00 = 한국시간 오전 9시 (매일)
     - cron: '0 0 * * *'
-  workflow_dispatch:   # Actions 탭에서 수동 실행 버튼 활성화 (테스트용)
+  workflow_dispatch:
 
 permissions:
-  contents: write      # 수집 결과를 저장소에 커밋하기 위해 필요
+  contents: write
 
 env:
-  TZ: Asia/Seoul       # collect.py가 한국 날짜로 기록하도록 설정
+  TZ: Asia/Seoul
 
 jobs:
   collect:
@@ -25,7 +24,15 @@ jobs:
           python-version: '3.12'
 
       - name: 다운로드수 수집
-        run: python collect.py
+        run: python collect.py --debug
+        continue-on-error: true
+
+      - name: 디버그 HTML 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-html
+          path: debug_*.html
+          if-no-files-found: ignore
 
       - name: 결과 커밋
         run: |
