@@ -2,6 +2,7 @@ name: 시리즈 다운로드수 수집
 
 on:
   schedule:
+    # UTC 기준 00:00 = 한국시간 오전 9시 (매일)
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -25,9 +26,9 @@ jobs:
 
       - name: 다운로드수 수집
         run: python collect.py --debug
-        continue-on-error: true
 
-      - name: 디버그 HTML 업로드
+      - name: 디버그 HTML 업로드 (실패 시 분석용)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debug-html
@@ -38,6 +39,6 @@ jobs:
         run: |
           git config user.name "series-collect-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/records.json data/data.js
+          git add -A data
           git diff --cached --quiet || git commit -m "수집: $(date +%Y-%m-%d)"
           git push
