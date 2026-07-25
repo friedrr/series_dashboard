@@ -1,10 +1,14 @@
 window.SERIES_DATA = {
   "sample": false,
-  "generatedAt": "2026-07-25 10:45:56",
+  "generatedAt": "2026-07-25 22:40:49",
   "works": [
     {
       "name": "멸귀수도전",
       "url": "https://series.naver.com/comic/detail.series?productNo=14298592"
+    },
+    {
+      "name": "멸귀수도전",
+      "url": "https://series.naver.com/comic/detail.series?productNo=14395909"
     }
   ],
   "records": {
