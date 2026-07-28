@@ -1,6 +1,6 @@
 window.SERIES_DATA = {
   "sample": false,
-  "generatedAt": "2026-07-27 10:56:03",
+  "generatedAt": "2026-07-28 10:30:07",
   "works": [
     {
       "name": "멸귀수도전",
@@ -23,6 +23,9 @@ window.SERIES_DATA = {
     },
     "2026-07-27": {
       "멸귀수도전": 89000
+    },
+    "2026-07-28": {
+      "멸귀수도전": 161000
     }
   }
 };
